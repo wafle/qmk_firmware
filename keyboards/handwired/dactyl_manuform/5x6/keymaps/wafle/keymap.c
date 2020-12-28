@@ -4,6 +4,8 @@
 
 #include "dactyl_manuform.h"
 #include "quantum.h"
+#include "vim.h"
+
 
 #ifdef USE_I2C
 #include <stddef.h>
@@ -45,11 +47,8 @@
 #define RAISE MO(_RAISE)
 #define VIM TO(_VIM)
 
-#include "vim.h"
-
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
-// swap alt to left, tilde, plus
   [_QWERTY] = LAYOUT_5x6_M(
      KC_GRAVE , KC_1  , KC_2  , KC_3  , KC_4  , KC_5,                         KC_6  , KC_7  , KC_8  , KC_9  , KC_0  ,KC_MINS,
      KC_TAB , KC_Q  , KC_W  , KC_E  , KC_R  , KC_T  ,                         KC_Y  , KC_U  , KC_I  , KC_O  , KC_P  ,KC_EQL,
@@ -74,7 +73,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   [_VIM] = LAYOUT_5x6_M(
      KC_GRAVE , VIM_1, VIM_2, VIM_3, VIM_4, VIM_5,                          VIM_6, VIM_7, VIM_8, VIM_9, VIM_0, KC_MINS,
      KC_TAB, KC_Q, VIM_W,  KC_E  , KC_R  ,  _______,                     VIM_Y  , VIM_U  , VIM_I, VIM_O  , VIM_P  ,KC_PLUS,
-     VIM_SHIFT, VIM_A  , KC_S  , VIM_D  , KC_F  , _______,                    KC_LEFT, VIM_J, VIM_K,KC_RIGHT ,KC_MINS,_______,
+     VIM_SHIFT, VIM_A  , VIM_S, VIM_D  , KC_F  , _______,                    VIM_H, VIM_J, VIM_K, VIM_L ,KC_MINS,_______,
      KC_LCTL, KC_Z  , KC_X  , VIM_C, VIM_V  ,  VIM_B,                       KC_N  , KC_M  ,VIM_COMM,VIM_DOT ,KC_SLSH,KC_BSLASH,
                      _______,_______,                                                       KC_PIPE, KC_EQL,
                                     _______,_______,_______,                          _______,_______, _______,
