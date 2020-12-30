@@ -42,10 +42,8 @@
 
 #define _QWERTY 0
 #define _RAISE 1
-#define _VIM 2
 
 #define RAISE MO(_RAISE)
-#define VIM TO(_VIM)
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
@@ -63,20 +61,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      KC_F12 , KC_F1 , KC_F2 , KC_F3 , KC_F4 , KC_F5 ,                                              KC_F6  , KC_F7 , KC_F8 , KC_F9 ,KC_F10 ,KC_F11,
      KC_CAPSLOCK,KC_MEDIA_PREV_TRACK,KC_MEDIA_PLAY_PAUSE,KC_MEDIA_NEXT_TRACK,_______,_______,      KC_HOME, KC_PGDOWN, KC_PGUP, KC_END ,_______, _______,
      KC_LSFT,KC_HOME,KC_PGUP,KC_PGDN,KC_END ,KC_LPRN,                                              KC_LEFT, KC_DOWN, KC_UP,KC_RIGHT ,KC_MINS,_______,
-     KC_LCTL,KC_MUTE,KC_VOLU,KC_VOLD,VIM,_______,                                              KC_PSCR , KC_MS_WH_DOWN , KC_MS_WH_UP ,_______ ,_______ ,RESET,
+     KC_LCTL,KC_MUTE,KC_VOLU,KC_VOLD, VIM_GO,_______,                                              KC_PSCR , KC_MS_WH_DOWN , KC_MS_WH_UP ,_______ ,_______ ,RESET,
                     _______,_______,                                                                       _______, KC_P0,
                                     _______,_______,_______,                          _______,_______, _______,
                                            _______, _______,                               _______,_______
 
-  ),
-
-  [_VIM] = LAYOUT_5x6_M(
-     KC_GRAVE , VIM_1, VIM_2, VIM_3, VIM_4, VIM_5,                          VIM_6, VIM_7, VIM_8, VIM_9, VIM_0, KC_MINS,
-     KC_TAB, KC_Q, VIM_W,  KC_E  , KC_R  ,  _______,                     VIM_Y  , VIM_U  , VIM_I, VIM_O  , VIM_P  ,KC_PLUS,
-     VIM_SHIFT, VIM_A  , VIM_S, VIM_D  , KC_F  , _______,                    VIM_H, VIM_J, VIM_K, VIM_L ,KC_MINS,_______,
-     KC_LCTL, KC_Z  , KC_X  , VIM_C, VIM_V  ,  VIM_B,                       KC_N  , KC_M  ,VIM_COMM,VIM_DOT ,KC_SLSH,KC_BSLASH,
-                     _______,_______,                                                       KC_PIPE, KC_EQL,
-                                    _______,_______,_______,                          _______,_______, _______,
-                                           _______, _______,                               _______,_______
   ),
 };
