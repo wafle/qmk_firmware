@@ -15,12 +15,7 @@ Supported features:
 Possible improvements:
  * macOS does word navigation with ALT instead of CTRL, and CMD for Copy/Paste, these could be abstracted, but there is no host detection functionality in QMK currently.
 */
-#include "config.h"
-#include "print.h"
-#include "keycode.h"
 #include "quantum.h"
-#include "quantum_keycodes.h"
-#include "string.h"
 
 #ifndef INDENT_SIZE
 #    define INDENT_SIZE 2
@@ -31,37 +26,7 @@ Possible improvements:
 
 enum custom_keycodes {
     PLACEHOLDER = SAFE_RANGE,  // can always be here
-    VIM_0,
-    VIM_1,
-    VIM_2,
-    VIM_3,
-    VIM_4,
-    VIM_5,
-    VIM_6,
-    VIM_7,
-    VIM_8,
-    VIM_9,
-    VIM_A,
-    VIM_B,
-    VIM_C,
-    VIM_D,
-    VIM_E,
-    VIM_H,
-    VIM_I,
-    VIM_J,
-    VIM_K,
-    VIM_L,
-    VIM_O,
-    VIM_P,
-    VIM_S,
-    VIM_U,
-    VIM_V,
-    VIM_W,
-    VIM_X,
-    VIM_Y,
-    VIM_DOT,
-    VIM_COMM,
-    VIM_SHIFT,
+    VIM_GO
 };
 
 #define PRESS(keycode) register_code16(keycode)
@@ -86,6 +51,7 @@ Command       previous       = {};
 bool visual_mode        = false;
 bool paste_line_end_fix = false;
 bool shifted            = false;
+bool in_normal_mode     = false;
 
 #define WITH_REPEATER(motion, repeat)               \
     for (uint16_t i = MAX(1, repeat); i > 0; --i) { \
@@ -94,10 +60,16 @@ bool shifted            = false;
 
 void TAP_N_TIMES(uint16_t keycode, uint16_t repeat) { WITH_REPEATER(TAP(keycode), repeat); }
 
+void normal_mode(void) {
+    in_normal_mode = true;
+    current        = DefaultCommand;
+}
+
 void insert_mode(void) {
-    visual_mode = false;
-    shifted     = false;
-    current     = DefaultCommand;
+    in_normal_mode = false;
+    visual_mode    = false;
+    shifted        = false;
+    current        = DefaultCommand;
     RELEASE(KC_LSHIFT);
     RELEASE(KC_LCTRL);
     layer_move(INSERT_MODE_LAYER);
@@ -123,16 +95,16 @@ void select_n_lines(int n, bool down) {
 
 uint16_t translate_motion(uint16_t vim_key) {
     switch (vim_key) {
-        case VIM_W:
-        case VIM_B:
-            return LCTL(current.motion == VIM_W ? KC_RIGHT : KC_LEFT);
-        case VIM_H:
+        case KC_W:
+        case KC_B:
+            return LCTL(current.motion == KC_W ? KC_RIGHT : KC_LEFT);
+        case KC_H:
             return KC_LEFT;
-        case VIM_J:
+        case KC_J:
             return KC_DOWN;
-        case VIM_K:
+        case KC_K:
             return KC_UP;
-        case VIM_L:
+        case KC_L:
             return KC_RIGHT;
         default:
             return KC_NO;
@@ -158,15 +130,15 @@ void release_motion(uint16_t vim_key) {
 }
 
 void execute_current(void) {
-    bool should_delete = current.action == VIM_C || current.action == VIM_D;
-    bool should_copy   = should_delete || current.action == VIM_Y;
+    bool should_delete = current.action == KC_C || current.action == KC_D;
+    bool should_copy   = should_delete || current.action == KC_Y;
     if (should_copy && !visual_mode) {
         if (current.shifted && should_delete) {
             PRESS(KC_LSHIFT);
             PRESS(KC_END);
             RELEASE(KC_LSHIFT);
-        } else if (current.motion == VIM_J || current.motion == VIM_K) {
-            select_n_lines(current.repeat, current.motion == VIM_J);
+        } else if (current.motion == KC_J || current.motion == KC_K) {
+            select_n_lines(current.repeat, current.motion == KC_J);
             paste_line_end_fix = true;
         } else {
             PRESS(KC_LSHIFT);
@@ -176,7 +148,7 @@ void execute_current(void) {
         }
         TAP(LCTL(should_delete ? KC_X : KC_C));
         // Delete remaining newline
-        if (should_delete && paste_line_end_fix) TAP(KC_DEL);
+        if (should_delete && paste_line_end_fix && !current.shifted) TAP(KC_DEL);
         // Jump to left of selection
         if (!should_delete) TAP(KC_LEFT);
     } else if (should_copy && visual_mode) {
@@ -186,13 +158,13 @@ void execute_current(void) {
         if (!should_delete) TAP(KC_LEFT);
         paste_line_end_fix = false;
     }
-    if (current.action == VIM_C) {
+    if (current.action == KC_C) {
         insert_mode();
     }
-    if (current.action == VIM_J) {
+    if (current.action == KC_J) {
         WITH_REPEATER(TAP(KC_END); TAP(KC_DELETE); TAP(KC_SPACE), current.repeat);
     }
-    if (current.action == VIM_P) {
+    if (current.action == KC_P) {
         if (shifted) {
             TAP(KC_LEFT);
         }
@@ -203,22 +175,22 @@ void execute_current(void) {
             if (paste_line_end_fix) { TAP(KC_ENTER); }; TAP(LCTL(KC_V)), current.repeat);
         if (paste_line_end_fix) TAP(KC_HOME);
     }
-    if (current.action == VIM_U) {
+    if (current.action == KC_U) {
         TAP_N_TIMES(LCTL(KC_Z), current.repeat);
     }
-    if (current.action == VIM_DOT || current.action == VIM_COMM) {
-        uint16_t k = current.action == VIM_DOT ? KC_SPACE : KC_DEL;
+    if (current.action == KC_DOT || current.action == KC_COMM) {
+        uint16_t k = current.action == KC_DOT ? KC_SPACE : KC_DEL;
         go_to_line_start();
         for (int i = 0; i < INDENT_SIZE; ++i) TAP(k);
-        if (current.repeat > 0 && (current.motion == VIM_J || current.motion == VIM_K)) {
+        if (current.repeat > 0 && (current.motion == KC_J || current.motion == KC_K)) {
             for (int i = 0; i < current.repeat; ++i) {
-                TAP(current.motion == VIM_J ? KC_DOWN : KC_UP);
-                if (current.action == VIM_DOT) TAP(KC_HOME);
+                TAP(current.motion == KC_J ? KC_DOWN : KC_UP);
+                if (current.action == KC_DOT) TAP(KC_HOME);
                 for (int i = 0; i < INDENT_SIZE; ++i) TAP(k);
             }
             // Go back to starting position
             for (int i = 0; i < current.repeat; ++i) {
-                TAP(current.motion == VIM_J ? KC_UP : KC_DOWN);
+                TAP(current.motion == KC_J ? KC_UP : KC_DOWN);
                 TAP(KC_HOME);
             }
         }
@@ -240,12 +212,12 @@ void maybe_action(uint16_t keycode, bool shifted) {
     if (visual_mode || shifted) {
         current.action  = keycode;
         current.shifted = shifted;
-        current.motion  = VIM_J;
+        current.motion  = KC_J;
         execute_current();
         return;
     }
     if (current.action == keycode) {
-        current.motion = VIM_J;
+        current.motion = KC_J;
         execute_current();
     } else {
         current.action = keycode;
@@ -306,27 +278,35 @@ void repeat_last_action(void) {
 }
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    if (keycode == VIM_GO) {
+        normal_mode();
+        return true;
+    }
+    if (!in_normal_mode) {
+        return true;
+    }
     switch (keycode) {
-        case VIM_SHIFT:
+        case KC_LSHIFT:
             shifted = record->event.pressed;
             return false;
-        case VIM_0 ... VIM_9:
+        case KC_1 ... KC_0:
             if (record->event.pressed) {
-                current.repeat = current.repeat * 10 + keycode - VIM_0;
+                uint16_t digit = (keycode - KC_1 + 1) % 10;
+                current.repeat = current.repeat * 10 + digit;
             }
             return false;
         // navigation block
-        case VIM_J:
+        case KC_J:
             if (record->event.pressed && shifted) {
-                current.action = VIM_J;
+                current.action = KC_J;
                 execute_current();
                 return false;
             }
-        case VIM_H:
-        case VIM_K:
-        case VIM_L:
-        case VIM_W:
-        case VIM_B:
+        case KC_H:
+        case KC_K:
+        case KC_L:
+        case KC_W:
+        case KC_B:
             if (record->event.pressed) {
                 maybe_motion(keycode);
             } else {
@@ -334,34 +314,34 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
 
-        case VIM_V:
+        case KC_V:
             if (record->event.pressed) {
                 VI_VISUAL();
             }
             return false;
 
         // maybe actions
-        case VIM_DOT:
+        case KC_DOT:
             if (record->event.pressed && !shifted) {
                 repeat_last_action();
                 return false;
             }
-        case VIM_COMM:
+        case KC_COMM:
             if (record->event.pressed && shifted) {
                 maybe_action(keycode, false);
                 return false;
             }
-        case VIM_C:
-        case VIM_Y:
-        case VIM_D:
+        case KC_C:
+        case KC_Y:
+        case KC_D:
             if (record->event.pressed) {
                 maybe_action(keycode, shifted);
             }
             return false;
 
         // immediate action
-        case VIM_U:
-        case VIM_P:
+        case KC_U:
+        case KC_P:
             if (record->event.pressed) {
                 current.action  = keycode;
                 current.shifted = shifted;
@@ -370,26 +350,27 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return false;
 
         // immediate non-repeatable insert mode jumpers
-        case VIM_O:
+        case KC_O:
             if (record->event.pressed) {
                 VIM_NEWLINE(shifted);
             }
             return false;
-        case VIM_I:
+        case KC_I:
             if (record->event.pressed) {
                 VIM_INSERT(shifted);
             }
             return false;
-        case VIM_A:
+        case KC_A:
             if (record->event.pressed) {
                 VIM_APPEND(shifted);
             }
             return false;
-        case VIM_S:
+        case KC_S:
             if (record->event.pressed) {
                 VIM_SUB();
             }
             return false;
+        default:
+            return true;
     }
-    return true;
 }
