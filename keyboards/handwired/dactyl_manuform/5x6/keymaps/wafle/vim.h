@@ -14,7 +14,6 @@ Supported features:
 
 Possible improvements:
  * macOS does word navigation with ALT instead of CTRL, and CMD for Copy/Paste, these could be abstracted, but there is no host detection functionality in QMK currently.
- * Keys currently translate to tapping instead of pressing on keydown and releasing on keyup, so holding e.g. w will not result in in repeated jumps.
 */
 #include "config.h"
 #include "print.h"
@@ -88,17 +87,17 @@ bool visual_mode        = false;
 bool paste_line_end_fix = false;
 bool shifted            = false;
 
-#define WITH_REPEATER(motion)                               \
-    for (uint16_t i = MAX(1, current.repeat); i > 0; --i) { \
-        motion;                                             \
+#define WITH_REPEATER(motion, repeat)               \
+    for (uint16_t i = MAX(1, repeat); i > 0; --i) { \
+        motion;                                     \
     }
 
-void TAP_N_TIMES(uint16_t keycode) { WITH_REPEATER(TAP(keycode)); }
+void TAP_N_TIMES(uint16_t keycode, uint16_t repeat) { WITH_REPEATER(TAP(keycode), repeat); }
 
 void insert_mode(void) {
     visual_mode = false;
     shifted     = false;
-    current = DefaultCommand;
+    current     = DefaultCommand;
     RELEASE(KC_LSHIFT);
     RELEASE(KC_LCTRL);
     layer_move(INSERT_MODE_LAYER);
@@ -122,27 +121,40 @@ void select_n_lines(int n, bool down) {
     RELEASE(KC_LSHIFT);
 }
 
-void trigger_motion(void) {
-    switch (current.motion) {
+uint16_t translate_motion(uint16_t vim_key) {
+    switch (vim_key) {
         case VIM_W:
         case VIM_B:
-            PRESS(KC_LCTRL);
-            TAP_N_TIMES(current.motion == VIM_W ? KC_RIGHT : KC_LEFT);
-            RELEASE(KC_LCTRL);
-            break;
+            return LCTL(current.motion == VIM_W ? KC_RIGHT : KC_LEFT);
         case VIM_H:
-            TAP_N_TIMES(KC_LEFT);
-            break;
+            return KC_LEFT;
         case VIM_J:
-            TAP_N_TIMES(KC_DOWN);
-            break;
+            return KC_DOWN;
         case VIM_K:
-            TAP_N_TIMES(KC_UP);
-            break;
+            return KC_UP;
         case VIM_L:
-            TAP_N_TIMES(KC_RIGHT);
-            break;
+            return KC_RIGHT;
+        default:
+            return KC_NO;
     }
+}
+
+void trigger_motion(uint16_t vim_key) {
+    uint16_t navigation = translate_motion(vim_key);
+    TAP_N_TIMES(navigation, current.repeat);
+}
+
+void trigger_and_hold_motion(uint16_t vim_key) {
+    uint16_t navigation = translate_motion(vim_key);
+    PRESS(navigation);
+    if (current.repeat > 1) {
+        WITH_REPEATER(RELEASE(navigation); PRESS(navigation), current.repeat - 1);
+    }
+}
+
+void release_motion(uint16_t vim_key) {
+    uint16_t navigation = translate_motion(vim_key);
+    RELEASE(navigation);
 }
 
 void execute_current(void) {
@@ -158,7 +170,7 @@ void execute_current(void) {
             paste_line_end_fix = true;
         } else {
             PRESS(KC_LSHIFT);
-            trigger_motion();
+            trigger_motion(current.motion);
             RELEASE(KC_LSHIFT);
             paste_line_end_fix = false;
         }
@@ -178,7 +190,7 @@ void execute_current(void) {
         insert_mode();
     }
     if (current.action == VIM_J) {
-        WITH_REPEATER(TAP(KC_END); TAP(KC_DELETE); TAP(KC_SPACE));
+        WITH_REPEATER(TAP(KC_END); TAP(KC_DELETE); TAP(KC_SPACE), current.repeat);
     }
     if (current.action == VIM_P) {
         if (shifted) {
@@ -187,11 +199,12 @@ void execute_current(void) {
         if (paste_line_end_fix) {
             TAP(KC_END);
         }
-        WITH_REPEATER(if (paste_line_end_fix) { TAP(KC_ENTER); }; TAP(LCTL(KC_V)));
+        WITH_REPEATER(
+            if (paste_line_end_fix) { TAP(KC_ENTER); }; TAP(LCTL(KC_V)), current.repeat);
         if (paste_line_end_fix) TAP(KC_HOME);
     }
     if (current.action == VIM_U) {
-        TAP_N_TIMES(LCTL(KC_Z));
+        TAP_N_TIMES(LCTL(KC_Z), current.repeat);
     }
     if (current.action == VIM_DOT || current.action == VIM_COMM) {
         uint16_t k = current.action == VIM_DOT ? KC_SPACE : KC_DEL;
@@ -242,7 +255,7 @@ void maybe_action(uint16_t keycode, bool shifted) {
 void maybe_motion(uint16_t keycode) {
     if (visual_mode || current.action == 0) {
         current.motion = keycode;
-        trigger_motion();
+        trigger_and_hold_motion(current.motion);
         current.repeat = 0;
     } else {
         current.motion = keycode;
@@ -279,7 +292,7 @@ void VIM_INSERT(bool shifted) {
 }
 
 void VIM_SUB(void) {
-    TAP_N_TIMES(KC_DEL);
+    TAP_N_TIMES(KC_DEL, current.repeat);
     insert_mode();
 }
 
@@ -316,6 +329,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case VIM_B:
             if (record->event.pressed) {
                 maybe_motion(keycode);
+            } else {
+                release_motion(keycode);
             }
             return false;
 
