@@ -106,6 +106,10 @@ uint16_t translate_motion(uint16_t vim_key) {
             return KC_UP;
         case KC_L:
             return KC_RIGHT;
+        case KC_4:
+            return KC_END;
+        case KC_6:
+            return KC_HOME;
         default:
             return KC_NO;
     }
@@ -291,8 +295,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return false;
         case KC_1 ... KC_0:
             if (record->event.pressed) {
+                if (!shifted) {
                 uint16_t digit = (keycode - KC_1 + 1) % 10;
                 current.repeat = current.repeat * 10 + digit;
+                } else {
+                    maybe_motion(keycode);
+                }
             }
             return false;
         // navigation block
