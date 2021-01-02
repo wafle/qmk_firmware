@@ -70,8 +70,6 @@ void insert_mode(void) {
     visual_mode    = false;
     shifted        = false;
     current        = DefaultCommand;
-    RELEASE(KC_LSHIFT);
-    RELEASE(KC_LCTRL);
     layer_move(INSERT_MODE_LAYER);
 }
 
@@ -83,7 +81,6 @@ void go_to_line_start(void) {
 }
 
 void select_n_lines(int n, bool down) {
-    RELEASE(KC_LSHIFT);
     down ? go_to_line_start() : TAP(KC_END);
     PRESS(KC_LSHIFT);
     for (; n > 1; --n) {
@@ -139,7 +136,7 @@ void execute_current(void) {
     if (should_copy && !visual_mode) {
         if (current.shifted && should_delete) {
             PRESS(KC_LSHIFT);
-            PRESS(KC_END);
+            TAP(KC_END);
             RELEASE(KC_LSHIFT);
         } else if (current.motion == KC_J || current.motion == KC_K) {
             select_n_lines(current.repeat, current.motion == KC_J);
@@ -166,7 +163,7 @@ void execute_current(void) {
         insert_mode();
     }
     if (current.action == KC_J) {
-        WITH_REPEATER(TAP(KC_END); TAP(KC_DELETE); TAP(KC_SPACE), current.repeat);
+        WITH_REPEATER(TAP(KC_END); TAP(KC_DEL); TAP(KC_SPACE), current.repeat);
     }
     if (current.action == KC_P) {
         if (shifted) {
@@ -195,8 +192,8 @@ void execute_current(void) {
             // Go back to starting position
             for (int i = 0; i < current.repeat; ++i) {
                 TAP(current.motion == KC_J ? KC_UP : KC_DOWN);
-                TAP(KC_HOME);
             }
+            TAP(KC_HOME);
         }
     }
     previous = current;
@@ -296,10 +293,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case KC_1 ... KC_0:
             if (record->event.pressed) {
                 if (!shifted) {
-                uint16_t digit = (keycode - KC_1 + 1) % 10;
-                current.repeat = current.repeat * 10 + digit;
+                    uint16_t digit = (keycode - KC_1 + 1) % 10;
+                    current.repeat = current.repeat * 10 + digit;
                 } else {
                     maybe_motion(keycode);
+                }
+            } else {
+                if (shifted) {
+                    release_motion(keycode);
                 }
             }
             return false;
@@ -310,6 +311,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 execute_current();
                 return false;
             }
+            // fall through
         case KC_H:
         case KC_K:
         case KC_L:
@@ -334,11 +336,13 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 repeat_last_action();
                 return false;
             }
+            // fall through
         case KC_COMM:
             if (record->event.pressed && shifted) {
                 maybe_action(keycode, false);
                 return false;
             }
+            // fall through
         case KC_C:
         case KC_Y:
         case KC_D:
