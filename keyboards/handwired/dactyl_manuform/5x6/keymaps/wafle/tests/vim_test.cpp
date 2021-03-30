@@ -180,3 +180,9 @@ TEST_F(VimTest, 34u5dot) {
     }
     EXPECT_THAT(keycodes, ElementsAreArray(expected));
 }
+
+TEST_F(VimTest, v3ld) {
+    write({T(KC_V), T(KC_3), T(KC_L), T(KC_D)});
+    EXPECT_THAT(keycodes, ElementsAre(P(KC_LSHIFT), T(KC_RIGHT),T(KC_RIGHT),T(KC_RIGHT), R(KC_LSHIFT), T(LCTL(KC_X))));
+}
+
